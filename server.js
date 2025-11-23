@@ -19,7 +19,34 @@ mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('MongoDB connected'))
+.then(async () => {
+  console.log('MongoDB connected');
+  // Create default admins if they don't exist
+  const Admin = require('./models/User');
+  const bcrypt = require('bcryptjs');
+  const saltRounds = 10;
+
+  const defaultAdmins = [
+    { email: 'admin@golazo.com', name: 'Admin One', password: 'admin123' },
+    { email: 'admin2@golazo.com', name: 'Admin Two', password: 'admin456' },
+  ];
+
+  for (const adminData of defaultAdmins) {
+    const existingAdmin = await Admin.findOne({ email: adminData.email, role: 'admin' });
+    if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash(adminData.password, saltRounds);
+      const newAdmin = new Admin({
+        email: adminData.email,
+        name: adminData.name,
+        role: 'admin',
+        password: hashedPassword,
+        approved: true,
+      });
+      await newAdmin.save();
+      console.log(`Default admin ${adminData.email} created`);
+    }
+  }
+})
 .catch(err => console.error('MongoDB connection error:', err));
 
 const auth = require('./middleware/auth');
